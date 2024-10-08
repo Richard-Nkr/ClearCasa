@@ -22,7 +22,7 @@ const handler = NextAuth({
             if (account) {
                 token.accessToken = account.access_token;
                 // Call the backend API to create/update user
-                await fetch('http://localhost:3001/api/user', {
+                const response = await fetch('http://localhost:3001/api/user', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -31,13 +31,17 @@ const handler = NextAuth({
                         email: token.email,
                         name: token.name,
                         image: token.picture,
+                        sub: token.sub, // Include Google's sub as googleId
                     }),
                 });
+                const data = await response.json();
+                token.userId = data.userId; // Store MongoDB _id in the token
             }
             return token;
         },
         async session({ session, token }: { session: ExtendedSession; token: JWT }) {
             session.accessToken = token.accessToken as string;
+            session.userId = token.userId as string; // Include userId in the session
             return session;
         },
     },

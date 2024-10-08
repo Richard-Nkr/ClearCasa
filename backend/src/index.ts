@@ -66,13 +66,34 @@ app.post('/api/user', async (req, res) => {
         const database = client.db("ClearCasa");
         const collection = database.collection("users");
 
-        const result = await collection.updateOne(
+        const result = await collection.findOneAndUpdate(
             { email },
-            { $set: { name, image, lastLogin: new Date() } },
-            { upsert: true }
+            {
+                $set: {
+                    name,
+                    image,
+                    lastLogin: new Date()
+                },
+                $setOnInsert: {
+                    googleId: req.body.sub, // Store Google ID, but don't use as primary identifier
+                    createdAt: new Date()
+                }
+            },
+            {
+                upsert: true,
+                returnDocument: 'after'
+            }
         );
 
-        res.json({ message: "User created or updated successfully", result });
+        if (result.value) {
+            res.json({
+                message: "User created or updated successfully",
+                userId: result.value._id,
+                isNewUser: result.lastErrorObject?.upserted ? true : false
+            });
+        } else {
+            res.status(500).json({ error: "Failed to create or update user" });
+        }
     } catch (error) {
         console.error("Error in /api/user route:", error);
         res.status(500).json({ error: "Internal Server Error" });
