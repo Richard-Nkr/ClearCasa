@@ -1,24 +1,16 @@
-import { getServerSession } from "next-auth/next";
-import { redirect } from "next/navigation";
-import AuthButtons from "@/components/AuthButtons";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 
-export default async function LandingPage() {
-  const session = await getServerSession();
-
-  if (session) {
-    redirect("/home");
-  }
-
+export default function LandingPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-r from-blue-500 to-purple-600">
-      <main className="text-center">
-        <h1 className="text-4xl font-bold text-white mb-4">
-          Welcome to Our Application
+    <div className="flex min-h-screen bg-white">
+      <main className="flex-1 flex flex-col items-center justify-center">
+        <h1 className="text-4xl font-bold text-gray-800 mb-4">
+          Welcome to ClearCasa
         </h1>
-        <p className="text-xl text-white mb-8">
-          We're excited to have you here!
+        <p className="text-xl text-gray-600 mb-8">
+          Simplify your home management
         </p>
-        <AuthButtons />
+        <GoogleAuthButton />
       </main>
     </div>
   );

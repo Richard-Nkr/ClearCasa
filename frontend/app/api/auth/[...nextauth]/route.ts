@@ -1,10 +1,5 @@
-import NextAuth, { Session } from "next-auth";
+import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { JWT } from "next-auth/jwt";
-
-interface ExtendedSession extends Session {
-    accessToken?: string;
-}
 
 const handler = NextAuth({
     providers: [
@@ -13,41 +8,47 @@ const handler = NextAuth({
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         }),
     ],
-    secret: process.env.NEXTAUTH_SECRET,
-    session: {
-        strategy: "jwt",
-    },
     callbacks: {
-        async jwt({ token, account, profile }) {
-            if (account) {
-                token.accessToken = account.access_token;
-                // Call the backend API to create/update user
-                const response = await fetch('http://localhost:3001/api/user', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email: token.email,
-                        name: token.name,
-                        image: token.picture,
-                        sub: token.sub, // Include Google's sub as googleId
-                    }),
-                });
-                const data = await response.json();
-                token.userId = data.userId; // Store MongoDB _id in the token
+        async signIn({ user, account }) {
+            if (account?.provider === "google") {
+                try {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                    const response = await fetch(`${apiUrl}/api/user`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: user.email,
+                            name: user.name,
+                            image: user.image,
+                            sub: user.id, // Google ID
+                        }),
+                    });
+
+                    if (response.ok) {
+                        return true
+                    } else {
+                        console.error("Error response from API:", await response.text());
+                        return false
+                    }
+                } catch (error) {
+                    console.error("Error during sign in:", error)
+                    return false
+                }
             }
-            return token;
+            return true
         },
-        async session({ session, token }: { session: ExtendedSession; token: JWT }) {
-            session.accessToken = token.accessToken as string;
-            session.userId = token.userId as string; // Include userId in the session
-            return session;
+        async jwt({ token, account }) {
+            if (account) {
+                token.accessToken = account.access_token
+            }
+            return token
         },
-    },
-    pages: {
-        signIn: "/",
-        signOut: "/",
+        async session({ session, token }: { session: any, token: any }) {
+            session.accessToken = token.accessToken
+            return session
+        },
     },
 });
 
