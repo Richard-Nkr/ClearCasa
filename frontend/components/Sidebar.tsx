@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, CheckSquare, Calendar, Settings, LogOut, Menu } from 'lucide-react';
+import { Home, CheckSquare, Calendar, Settings, LogOut, Menu, Plus } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import CasaForm from './CasaForm';
 
 export default function Sidebar() {
     const { data: session } = useSession();
@@ -28,10 +29,10 @@ export default function Sidebar() {
             </div>
             <nav className="flex-1 px-4">
                 <ul className="space-y-1">
-                    <SidebarItem href="/home" icon={<Home size={20} />} text="Dashboard" />
-                    <SidebarItem href="/tasks" icon={<CheckSquare size={20} />} text="Tasks" />
-                    <SidebarItem href="/calendar" icon={<Calendar size={20} />} text="Calendar" />
                     <SidebarItem href="/settings" icon={<Settings size={20} />} text="Settings" />
+                    <li>
+                        <CasaForm />
+                    </li>
                 </ul>
             </nav>
             <div className="mt-auto pt-4 px-4">

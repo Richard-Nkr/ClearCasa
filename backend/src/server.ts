@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import userRoutes from './routes/userRoutes';
+import casaRoutes from './routes/casaRoutes';
 
 dotenv.config();
 
@@ -35,8 +36,9 @@ mongoose.connection.on('error', (err) => {
 app.use(cors());
 app.use(express.json());
 
-// Use the user routes
+// Use the routes
 app.use('/api/user', userRoutes);
+app.use('/api/casa', casaRoutes);
 
 app.get('/', (req: Request, res: Response) => {
     res.send('Hello, World!');
