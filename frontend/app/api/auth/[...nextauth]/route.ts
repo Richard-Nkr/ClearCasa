@@ -8,11 +8,14 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         }),
     ],
+    debug: process.env.NODE_ENV === 'development',
     callbacks: {
         async signIn({ user, account }) {
+            console.log("Sign in callback triggered", { user, account });
             if (account?.provider === "google") {
                 try {
                     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                    console.log(`Attempting to create/update user in backend: ${apiUrl}/api/user`);
                     const response = await fetch(`${apiUrl}/api/user`, {
                         method: 'POST',
                         headers: {
@@ -22,22 +25,24 @@ export const authOptions: NextAuthOptions = {
                             email: user.email,
                             name: user.name,
                             image: user.image,
-                            sub: user.id, // Google ID
+                            googleId: user.id, // Changed from sub to googleId
                         }),
                     });
 
                     if (response.ok) {
-                        return true
+                        console.log("User successfully created/updated in backend");
+                        return true;
                     } else {
-                        console.error("Error response from API:", await response.text());
-                        return false
+                        const errorText = await response.text();
+                        console.error("Error response from API:", response.status, errorText);
+                        return false;
                     }
                 } catch (error) {
-                    console.error("Error during sign in:", error)
-                    return false
+                    console.error("Error during sign in:", error);
+                    return false;
                 }
             }
-            return true
+            return true;
         },
         async jwt({ token, account }) {
             if (account) {

@@ -1,89 +1,110 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createRoot } from 'react-dom/client';
 
 interface Casa {
     id: string;
     title: string;
+    description: string;
     address: string;
     city: string;
+    startDate: string;
+    endDate: string;
     latitude: string;
     longitude: string;
+    owner: {
+        name: string;
+        email: string;
+    };
 }
 
 interface LeafletMapProps {
     casas: Casa[];
     center: [number, number];
     zoom: number;
+    renderTooltip: (casa: Casa) => React.ReactNode;
 }
 
-export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
+export default function LeafletMap({ casas, center, zoom, renderTooltip }: LeafletMapProps) {
     const mapRef = useRef<L.Map | null>(null);
-    const markersLayerRef = useRef<L.LayerGroup | null>(null);
+    const markersRef = useRef<L.Marker[]>([]);
 
-    // Initialize the map
     useEffect(() => {
         if (!mapRef.current) {
-            mapRef.current = L.map('background-map').setView(center, zoom);
+            mapRef.current = L.map('map', {
+                center: center,
+                zoom: zoom,
+                zoomControl: false,
+                attributionControl: false
+            });
+
+            // Custom white map style
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
             }).addTo(mapRef.current);
 
-            markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
+            // Apply custom CSS to make the map white
+            const mapContainer = mapRef.current.getContainer();
+            mapContainer.style.filter = 'grayscale(100%) brightness(105%)';
+        } else {
+            mapRef.current.setView(center, zoom);
         }
 
         return () => {
             if (mapRef.current) {
                 mapRef.current.remove();
                 mapRef.current = null;
-                markersLayerRef.current = null;
             }
         };
-    }, []); // Empty dependency array means this effect runs once on mount
-
-    // Update map view when center or zoom changes
-    useEffect(() => {
-        if (mapRef.current) {
-            mapRef.current.setView(center, zoom);
-        }
     }, [center, zoom]);
 
-    // Manage markers
     useEffect(() => {
-        if (mapRef.current && markersLayerRef.current) {
-            console.log(`Processing ${casas.length} casas for map markers`);
+        if (!mapRef.current) return;
 
-            // Clear existing markers
-            markersLayerRef.current.clearLayers();
+        // Remove existing markers
+        markersRef.current.forEach(marker => marker.remove());
+        markersRef.current = [];
 
-            // Add new markers
-            casas.forEach(casa => {
-                if (casa.latitude && casa.longitude) {
-                    const lat = parseFloat(casa.latitude);
-                    const lng = parseFloat(casa.longitude);
-                    console.log('Adding marker for casa:', casa.title, 'at', lat, lng);
+        // Custom icon SVG
+        const svgIcon = L.divIcon({
+            html: `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0C7.58 0 4 3.58 4 8C4 13.54 12 24 12 24C12 24 20 13.54 20 8C20 3.58 16.42 0 12 0ZM12 11C10.34 11 9 9.66 9 8C9 6.34 10.34 5 12 5C13.66 5 15 6.34 15 8C15 9.66 13.66 11 12 11Z" fill="#4A5568"/>
+                </svg>
+            `,
+            className: 'svg-icon',
+            iconSize: [24, 24],
+            iconAnchor: [12, 24],
+        });
 
-                    const blackIcon = new L.Icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-black.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41]
-                    });
+        // Add new markers
+        casas.forEach(casa => {
+            const lat = parseFloat(casa.latitude);
+            const lng = parseFloat(casa.longitude);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const marker = L.marker([lat, lng], { icon: svgIcon }).addTo(mapRef.current!);
+                
+                // Create a container for the React component
+                const container = L.DomUtil.create('div');
+                const root = createRoot(container);
+                root.render(renderTooltip(casa));
 
-                    L.marker([lat, lng], { icon: blackIcon })
-                        .bindPopup(`<b>${casa.title}</b><br>${casa.address}, ${casa.city}`)
-                        .addTo(markersLayerRef.current!);
-                } else {
-                    console.warn('Casa missing latitude or longitude:', casa);
-                }
-            });
-        }
-    }, [casas]);
+                // Bind the container to the marker with custom options
+                marker.bindPopup(container, {
+                    maxWidth: 200,
+                    minWidth: 200,
+                    className: 'custom-popup'
+                });
+                
+                markersRef.current.push(marker);
+            }
+        });
+    }, [casas, renderTooltip]);
 
-    return <div id="background-map" className="absolute inset-0 z-0" />;
+    return <div id="map" style={{ height: '100%', width: '100%' }} />;
 }
