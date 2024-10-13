@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 router.post('/', async (req, res) => {
     try {
-        const { title, description, address, city, startDate, endDate, latitude, longitude, userEmail } = req.body;
+        const { title, description, address, city, startDate, endDate, latitude, longitude, userEmail, categories } = req.body;
 
         const user = await prisma.user.findUnique({
             where: { email: userEmail },
@@ -27,7 +27,25 @@ router.post('/', async (req, res) => {
                 latitude,
                 longitude,
                 owner: { connect: { id: user.id } },
+                categories: {
+                    create: categories.map((categoryId: string) => ({
+                        category: { connect: { id: categoryId } }
+                    }))
+                }
             },
+            include: {
+                categories: {
+                    include: {
+                        category: true
+                    }
+                },
+                owner: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            }
         });
 
         res.status(201).json(casa);
@@ -40,16 +58,7 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
     try {
         const casas = await prisma.casa.findMany({
-            select: {
-                id: true,
-                title: true,
-                description: true,
-                address: true,
-                city: true,
-                startDate: true,
-                endDate: true,
-                latitude: true,
-                longitude: true,
+            include: {
                 owner: {
                     select: {
                         name: true,
@@ -60,8 +69,44 @@ router.get('/', async (req, res) => {
         });
         res.json(casas);
     } catch (error) {
-        console.error('Error fetching casas:', error);
+        console.error('Error fetching all casas:', error);
         res.status(500).json({ error: 'Unable to fetch casas' });
+    }
+});
+
+// New route to get ALL casas
+router.get('/all', async (req, res) => {
+    try {
+        const allCasas = await prisma.casa.findMany({
+            include: {
+                categories: {
+                    include: {
+                        category: true
+                    }
+                },
+                owner: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
+        res.json(allCasas);
+    } catch (error) {
+        console.error('Error fetching all casas:', error);
+        res.status(500).json({ error: 'Unable to fetch all casas' });
+    }
+});
+
+// Add a new route to get all categories
+router.get('/categories', async (req, res) => {
+    try {
+        const categories = await prisma.category.findMany();
+        res.json(categories);
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        res.status(500).json({ error: 'Unable to fetch categories' });
     }
 });
 
