@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import BackgroundMap from "@/components/BackgroundMap";
 
 export default async function HomePage() {
     const session = await getServerSession();
@@ -11,13 +12,9 @@ export default async function HomePage() {
 
     return (
         <AuthenticatedLayout>
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">
-                Welcome to Your Dashboard
-            </h1>
-            <p className="text-xl text-gray-600 mb-8">
-                Here's an overview of your tasks and upcoming events.
-            </p>
-            {/* Add dashboard content here */}
+            <div className="flex-1 h-full">
+                <BackgroundMap />
+            </div>
         </AuthenticatedLayout>
     );
 }

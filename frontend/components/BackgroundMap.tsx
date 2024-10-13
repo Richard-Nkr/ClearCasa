@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import debounce from 'lodash/debounce';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 
 // Dynamically import Leaflet with no SSR
 const LeafletMap = dynamic(() => import('./LeafletMap'), {
@@ -18,6 +22,7 @@ interface Casa {
     city: string;
     latitude: string;
     longitude: string;
+    startDate: string; // Add this field
 }
 
 interface CityAutocomplete {
@@ -28,7 +33,9 @@ interface CityAutocomplete {
 
 export default function BackgroundMap() {
     const [casas, setCasas] = useState<Casa[]>([]);
+    const [filteredCasas, setFilteredCasas] = useState<Casa[]>([]);
     const [city, setCity] = useState('');
+    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [autocompleteResults, setAutocompleteResults] = useState<CityAutocomplete[]>([]);
     const [mapCenter, setMapCenter] = useState<[number, number]>(() => {
         if (typeof window !== 'undefined') {
@@ -58,6 +65,7 @@ export default function BackgroundMap() {
                 const data = await response.json();
                 console.log(`Fetched ${data.length} casas in BackgroundMap:`, JSON.stringify(data, null, 2));
                 setCasas(data);
+                setFilteredCasas(data);
             } else {
                 const errorText = await response.text();
                 console.error('Failed to fetch casas:', response.status, response.statusText, errorText);
@@ -71,16 +79,31 @@ export default function BackgroundMap() {
         fetchCasas();
     }, [fetchCasas]);
 
-    // Add an event listener for custom casa creation event
     useEffect(() => {
-        const handleNewCasa = () => {
-            fetchCasas();
+        const handleNewCasa = (event: CustomEvent<Casa>) => {
+            setCasas(prevCasas => {
+                const newCasas = [...prevCasas, event.detail];
+                setFilteredCasas(filterCasasByDate(newCasas, startDate));
+                return newCasas;
+            });
         };
-        window.addEventListener('newCasaCreated', handleNewCasa);
+        window.addEventListener('newCasaCreated', handleNewCasa as EventListener);
         return () => {
-            window.removeEventListener('newCasaCreated', handleNewCasa);
+            window.removeEventListener('newCasaCreated', handleNewCasa as EventListener);
         };
-    }, [fetchCasas]);
+    }, [startDate]);
+
+    useEffect(() => {
+        setFilteredCasas(filterCasasByDate(casas, startDate));
+    }, [casas, startDate]);
+
+    const filterCasasByDate = (casasToFilter: Casa[], date: Date | undefined) => {
+        if (!date) return casasToFilter;
+        return casasToFilter.filter(casa => {
+            const casaDate = new Date(casa.startDate);
+            return casaDate >= date;
+        });
+    };
 
     const handleCityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setCity(e.target.value);
@@ -149,9 +172,9 @@ export default function BackgroundMap() {
 
     return (
         <div className="relative w-full h-full">
-            <LeafletMap casas={casas} center={mapCenter} zoom={mapZoom} />
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white p-2 rounded shadow-md">
-                <form onSubmit={(e) => { e.preventDefault(); handleCitySubmit(); }} className="flex items-center">
+            <LeafletMap casas={filteredCasas} center={mapCenter} zoom={mapZoom} />
+            <div className="absolute top-4 left-4 z-10 bg-white p-2 rounded shadow-md">
+                <form onSubmit={(e) => { e.preventDefault(); handleCitySubmit(); }} className="flex items-center mb-2">
                     <div className="relative">
                         <Input
                             type="text"
@@ -181,6 +204,36 @@ export default function BackgroundMap() {
                         Center Map
                     </Button>
                 </form>
+                <div className="flex items-center">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={`w-[240px] justify-start text-left font-normal ${!startDate && "text-muted-foreground"}`}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {startDate ? format(startDate, "PPP") : <span>Pick a start date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={startDate}
+                                onSelect={setStartDate}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    {startDate && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => setStartDate(undefined)}
+                            className="ml-2"
+                        >
+                            Clear
+                        </Button>
+                    )}
+                </div>
             </div>
         </div>
     );

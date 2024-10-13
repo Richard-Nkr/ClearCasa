@@ -1,16 +1,16 @@
 import GoogleAuthButton from "@/components/GoogleAuthButton";
+import GrayedBackgroundMap from "@/components/GrayedBackgroundMap";
 
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen bg-white">
-      <main className="flex-1 flex flex-col items-center justify-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">
-          Welcome to ClearCasa
-        </h1>
-        <p className="text-xl text-gray-600 mb-8">
-          Simplify your home management
-        </p>
+      <main className="flex-1 flex flex-col items-center justify-center relative">
         <GoogleAuthButton />
+        <div className="absolute inset-0 -z-10">
+          <div className="relative w-full h-full">
+            <div className="absolute inset-0 bg-gray-500 bg-opacity-50 backdrop-filter backdrop-blur-sm" />
+          </div>
+        </div>
       </main>
     </div>
   );

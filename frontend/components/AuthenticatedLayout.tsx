@@ -7,9 +7,9 @@ interface AuthenticatedLayoutProps {
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     return (
-        <div className="flex min-h-screen bg-white">
-            <Sidebar />
-            <main className="flex-1 p-8 md:ml-64">
+        <div className="flex h-screen overflow-hidden bg-white">
+            <Sidebar className="w-64 flex-shrink-0" />
+            <main className="flex-1 overflow-hidden">
                 {children}
             </main>
         </div>
