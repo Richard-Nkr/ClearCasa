@@ -4,6 +4,11 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { createRoot } from 'react-dom/client';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon, MapPinIcon, UserIcon } from "lucide-react";
+import { format } from "date-fns";
 
 interface Casa {
     id: string;
@@ -25,10 +30,9 @@ interface LeafletMapProps {
     casas: Casa[];
     center: [number, number];
     zoom: number;
-    renderTooltip: (casa: Casa) => React.ReactNode;
 }
 
-export default function LeafletMap({ casas, center, zoom, renderTooltip }: LeafletMapProps) {
+export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
     const mapRef = useRef<L.Map | null>(null);
     const markersRef = useRef<L.Marker[]>([]);
 
@@ -41,14 +45,12 @@ export default function LeafletMap({ casas, center, zoom, renderTooltip }: Leafl
                 attributionControl: false
             });
 
-            // Custom white map style
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
                 subdomains: 'abcd',
                 maxZoom: 20
             }).addTo(mapRef.current);
 
-            // Apply custom CSS to make the map white
             const mapContainer = mapRef.current.getContainer();
             mapContainer.style.filter = 'grayscale(100%) brightness(105%)';
         } else {
@@ -66,11 +68,9 @@ export default function LeafletMap({ casas, center, zoom, renderTooltip }: Leafl
     useEffect(() => {
         if (!mapRef.current) return;
 
-        // Remove existing markers
         markersRef.current.forEach(marker => marker.remove());
         markersRef.current = [];
 
-        // Custom icon SVG
         const svgIcon = L.divIcon({
             html: `
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -82,29 +82,73 @@ export default function LeafletMap({ casas, center, zoom, renderTooltip }: Leafl
             iconAnchor: [12, 24],
         });
 
-        // Add new markers
         casas.forEach(casa => {
             const lat = parseFloat(casa.latitude);
             const lng = parseFloat(casa.longitude);
             if (!isNaN(lat) && !isNaN(lng)) {
                 const marker = L.marker([lat, lng], { icon: svgIcon }).addTo(mapRef.current!);
                 
-                // Create a container for the React component
                 const container = L.DomUtil.create('div');
                 const root = createRoot(container);
-                root.render(renderTooltip(casa));
+                root.render(
+                    <Card className="w-64 p-0 shadow-lg">
+                        <CardHeader className="bg-black text-white p-3">
+                            <CardTitle className="text-lg font-semibold">{casa.title}</CardTitle>
+                            <p className="text-sm">{casa.description}</p>
+                        </CardHeader>
+                        <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center text-sm">
+                                <MapPinIcon className="w-4 h-4 mr-2" />
+                                <span>{casa.city}</span>
+                            </div>
+                            <div className="flex items-center text-sm">
+                                <CalendarIcon className="w-4 h-4 mr-2" />
+                                <span>{format(new Date(casa.startDate), 'MMM d, yyyy')} - {format(new Date(casa.endDate), 'MMM d, yyyy')}</span>
+                            </div>
+                            <div className="flex items-center text-sm">
+                                <UserIcon className="w-4 h-4 mr-2" />
+                                <span>{casa.owner.name}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-3">
+                                <Badge variant="secondary" className="bg-gray-200 text-gray-800">
+                                    {new Date(casa.startDate) > new Date() ? 'Active' : 'Active'}
+                                </Badge>
+                                <Button variant="outline" size="sm">
+                                    View Details
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                );
 
-                // Bind the container to the marker with custom options
                 marker.bindPopup(container, {
-                    maxWidth: 200,
-                    minWidth: 200,
+                    maxWidth: 300,
+                    minWidth: 300,
                     className: 'custom-popup'
                 });
                 
                 markersRef.current.push(marker);
             }
         });
-    }, [casas, renderTooltip]);
+    }, [casas]);
 
-    return <div id="map" style={{ height: '100%', width: '100%' }} />;
+    return (
+        <>
+            <div id="map" style={{ height: '100%', width: '100%' }} />
+            <style jsx global>{`
+                .custom-popup .leaflet-popup-content-wrapper {
+                    padding: 0;
+                    overflow: hidden;
+                    border-radius: 0.5rem;
+                }
+                .custom-popup .leaflet-popup-content {
+                    margin: 0;
+                    width: 100% !important;
+                }
+                .custom-popup .leaflet-popup-tip-container {
+                    display: none;
+                }
+            `}</style>
+        </>
+    );
 }
