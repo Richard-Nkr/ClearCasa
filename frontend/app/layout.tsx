@@ -3,7 +3,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import Sidebar from '@/components/Sidebar';
 import BackgroundMap from '@/components/BackgroundMap';
 import 'leaflet/dist/leaflet.css';
@@ -29,7 +28,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions);
+  // Remove the getServerSession call or update it to use the new auth configuration
+  // const session = await getServerSession(authOptions);
 
   return (
     <html lang="en">

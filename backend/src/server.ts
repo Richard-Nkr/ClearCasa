@@ -40,10 +40,6 @@ app.use(express.json());
 app.use('/api/user', userRoutes);
 app.use('/api/casa', casaRoutes);
 
-app.get('/', (req: Request, res: Response) => {
-    res.send('Hello, World!');
-});
-
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: Function) => {
     console.error(err.stack);
