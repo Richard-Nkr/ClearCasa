@@ -10,6 +10,12 @@ import { Button } from "@/components/ui/button";
 import { CalendarIcon, MapPinIcon, UserIcon } from "lucide-react";
 import { format } from "date-fns";
 
+interface Category {
+    id: string;
+    name: string;
+    emoji: string;
+}
+
 interface Casa {
     id: string;
     title: string;
@@ -24,6 +30,7 @@ interface Casa {
         name: string;
         email: string;
     };
+    categories: { category: Category }[];
 }
 
 interface LeafletMapProps {
@@ -31,6 +38,18 @@ interface LeafletMapProps {
     center: [number, number];
     zoom: number;
 }
+
+const categoryColors: { [key: string]: string } = {
+    'Books': 'bg-blue-200 text-blue-800',
+    'Furniture': 'bg-green-200 text-green-800',
+    'Garden': 'bg-yellow-200 text-yellow-800',
+    'Art': 'bg-purple-200 text-purple-800',
+    'Electronics': 'bg-red-200 text-red-800',
+    'Kitchen': 'bg-orange-200 text-orange-800',
+    'Sports': 'bg-indigo-200 text-indigo-800',
+    'Toys': 'bg-pink-200 text-pink-800',
+    'Music': 'bg-teal-200 text-teal-800',
+};
 
 export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
     const mapRef = useRef<L.Map | null>(null);
@@ -45,14 +64,12 @@ export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
                 attributionControl: false
             });
 
+            // Use a simple color map style
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
                 subdomains: 'abcd',
                 maxZoom: 20
             }).addTo(mapRef.current);
-
-            const mapContainer = mapRef.current.getContainer();
-            mapContainer.style.filter = 'grayscale(100%) brightness(105%)';
         } else {
             mapRef.current.setView(center, zoom);
         }
@@ -94,7 +111,14 @@ export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
                     <Card className="w-64 p-0 shadow-lg">
                         <CardHeader className="bg-black text-white p-3">
                             <CardTitle className="text-lg font-semibold">{casa.title}</CardTitle>
-                            <p className="text-sm">{casa.description}</p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                                {casa.categories.map(({ category }) => (
+                                    <Badge key={category.id} className={categoryColors[category.name] || 'bg-gray-200 text-gray-800'}>
+                                        {category.emoji} {category.name}
+                                    </Badge>
+                                ))}
+                            </div>
+                            <p className="text-sm mt-2">{casa.description}</p>
                         </CardHeader>
                         <CardContent className="p-3 space-y-2">
                             <div className="flex items-center text-sm">
@@ -111,7 +135,7 @@ export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
                             </div>
                             <div className="flex justify-between items-center mt-3">
                                 <Badge variant="secondary" className="bg-gray-200 text-gray-800">
-                                    {new Date(casa.startDate) > new Date() ? 'Active' : 'Active'}
+                                    {new Date(casa.startDate) > new Date() ? 'Upcoming' : 'Active'}
                                 </Badge>
                                 <Button variant="outline" size="sm">
                                     View Details
