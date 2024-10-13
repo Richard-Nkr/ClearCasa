@@ -18,11 +18,17 @@ const LeafletMap = dynamic(() => import('./LeafletMap'), {
 interface Casa {
     id: string;
     title: string;
+    description: string;
     address: string;
     city: string;
+    startDate: string;
+    endDate: string;
     latitude: string;
     longitude: string;
-    startDate: string; // Add this field
+    owner: {
+        name: string;
+        email: string;
+    };
 }
 
 interface CityAutocomplete {
@@ -62,7 +68,7 @@ export default function BackgroundMap() {
                 }
             });
             if (response.ok) {
-                const data = await response.json();
+                const data: Casa[] = await response.json();
                 console.log(`Fetched ${data.length} casas in BackgroundMap:`, JSON.stringify(data, null, 2));
                 setCasas(data);
                 setFilteredCasas(data);
@@ -96,6 +102,10 @@ export default function BackgroundMap() {
     useEffect(() => {
         setFilteredCasas(filterCasasByDate(casas, startDate));
     }, [casas, startDate]);
+
+    useEffect(() => {
+        console.log('Filtered casas:', filteredCasas);
+    }, [filteredCasas]);
 
     const filterCasasByDate = (casasToFilter: Casa[], date: Date | undefined) => {
         if (!date) return casasToFilter;
@@ -160,7 +170,6 @@ export default function BackgroundMap() {
                 localStorage.setItem('mapZoom', '12');
                 localStorage.setItem('lastSearchedCity', selectedCity);
                 setAutocompleteResults([]);
-                // Don't fetch casas here, as it's not necessary and may cause issues
             } else {
                 console.log("City not found. Please try a different city name.");
             }
@@ -173,43 +182,37 @@ export default function BackgroundMap() {
     return (
         <div className="relative w-full h-full">
             <LeafletMap casas={filteredCasas} center={mapCenter} zoom={mapZoom} />
-            <div className="absolute top-4 left-4 z-10 bg-white p-2 rounded shadow-md">
-                <form onSubmit={(e) => { e.preventDefault(); handleCitySubmit(); }} className="flex items-center mb-2">
-                    <div className="relative">
-                        <Input
-                            type="text"
-                            value={city}
-                            onChange={handleCityChange}
-                            placeholder="Enter city"
-                            className="pr-10 w-64"
-                        />
-                        {autocompleteResults.length > 0 && (
-                            <ul className="absolute z-20 w-full bg-white border border-gray-300 mt-1 rounded-md shadow-lg max-h-60 overflow-auto">
-                                {autocompleteResults.map((result, index) => (
-                                    <li
-                                        key={index}
-                                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                        onClick={() => {
-                                            setCity(result.display_name);
-                                            handleCitySubmit(result.display_name);
-                                        }}
-                                    >
-                                        {result.display_name}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                    <Button type="submit" className="ml-2">
-                        Center Map
-                    </Button>
-                </form>
-                <div className="flex items-center">
+            <div className="absolute top-1/2 left-4 transform -translate-y-1/2 z-10 bg-white p-2 rounded shadow-md">
+                <div className="flex flex-col items-start">
+                    <Input
+                        type="text"
+                        placeholder="Enter a city"
+                        value={city}
+                        onChange={handleCityChange}
+                        className="mb-2 w-[240px]"
+                    />
+                    {autocompleteResults.length > 0 && (
+                        <ul className="bg-white border border-gray-300 rounded mt-1 w-[240px]">
+                            {autocompleteResults.map((result, index) => (
+                                <li
+                                    key={index}
+                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                    onClick={() => {
+                                        setCity(result.display_name);
+                                        handleCitySubmit(result.display_name);
+                                    }}
+                                >
+                                    {result.display_name}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
                                 variant={"outline"}
-                                className={`w-[240px] justify-start text-left font-normal ${!startDate && "text-muted-foreground"}`}
+                                className={`w-[240px] justify-start text-left font-normal mb-2 ${!startDate && "text-muted-foreground"}`}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {startDate ? format(startDate, "PPP") : <span>Pick a start date</span>}
@@ -228,9 +231,9 @@ export default function BackgroundMap() {
                         <Button
                             variant="ghost"
                             onClick={() => setStartDate(undefined)}
-                            className="ml-2"
+                            className="w-full"
                         >
-                            Clear
+                            Clear Date
                         </Button>
                     )}
                 </div>

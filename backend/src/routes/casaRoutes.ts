@@ -39,7 +39,25 @@ router.post('/', async (req, res) => {
 
 router.get('/', async (req, res) => {
     try {
-        const casas = await prisma.casa.findMany();
+        const casas = await prisma.casa.findMany({
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                address: true,
+                city: true,
+                startDate: true,
+                endDate: true,
+                latitude: true,
+                longitude: true,
+                owner: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
         res.json(casas);
     } catch (error) {
         console.error('Error fetching casas:', error);
