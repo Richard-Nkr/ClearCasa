@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -21,37 +21,43 @@ interface LeafletMapProps {
 
 export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
     const mapRef = useRef<L.Map | null>(null);
+    const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
+    // Initialize the map
     useEffect(() => {
         if (!mapRef.current) {
             mapRef.current = L.map('background-map').setView(center, zoom);
-
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 maxZoom: 19,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
             }).addTo(mapRef.current);
-        } else {
-            mapRef.current.setView(center, zoom);
+
+            markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
         }
 
         return () => {
             if (mapRef.current) {
                 mapRef.current.remove();
                 mapRef.current = null;
+                markersLayerRef.current = null;
             }
         };
-    }, [center, zoom]);
+    }, []); // Empty dependency array means this effect runs once on mount
 
+    // Update map view when center or zoom changes
     useEffect(() => {
         if (mapRef.current) {
+            mapRef.current.setView(center, zoom);
+        }
+    }, [center, zoom]);
+
+    // Manage markers
+    useEffect(() => {
+        if (mapRef.current && markersLayerRef.current) {
             console.log(`Processing ${casas.length} casas for map markers`);
 
             // Clear existing markers
-            mapRef.current.eachLayer((layer) => {
-                if (layer instanceof L.Marker) {
-                    mapRef.current!.removeLayer(layer);
-                }
-            });
+            markersLayerRef.current.clearLayers();
 
             // Add new markers
             casas.forEach(casa => {
@@ -70,8 +76,8 @@ export default function LeafletMap({ casas, center, zoom }: LeafletMapProps) {
                     });
 
                     L.marker([lat, lng], { icon: blackIcon })
-                        .addTo(mapRef.current!)
-                        .bindPopup(`<b>${casa.title}</b><br>${casa.address}, ${casa.city}`);
+                        .bindPopup(`<b>${casa.title}</b><br>${casa.address}, ${casa.city}`)
+                        .addTo(markersLayerRef.current!);
                 } else {
                     console.warn('Casa missing latitude or longitude:', casa);
                 }
