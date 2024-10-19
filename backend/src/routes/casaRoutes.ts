@@ -24,21 +24,14 @@ router.post('/', async (req, res) => {
                 city,
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
-                latitude,
-                longitude,
-                owner: { connect: { id: user.id } },
-                categories: {
-                    create: categories.map((categoryId: string) => ({
-                        category: { connect: { id: categoryId } }
-                    }))
-                }
+                latitude: parseFloat(latitude),  // Ensure it's a float
+                longitude: parseFloat(longitude),  // Ensure it's a float
+                owner: {
+                    connect: { id: user.id }
+                },
+                categories // This is already an array of strings
             },
             include: {
-                categories: {
-                    include: {
-                        category: true
-                    }
-                },
                 owner: {
                     select: {
                         name: true,
@@ -51,7 +44,7 @@ router.post('/', async (req, res) => {
         res.status(201).json(casa);
     } catch (error) {
         console.error('Error creating casa:', error);
-        res.status(400).json({ error: 'Unable to create casa' });
+        res.status(500).json({ error: 'An error occurred while creating the casa' });
     }
 });
 
@@ -79,11 +72,6 @@ router.get('/all', async (req, res) => {
     try {
         const allCasas = await prisma.casa.findMany({
             include: {
-                categories: {
-                    include: {
-                        category: true
-                    }
-                },
                 owner: {
                     select: {
                         name: true,
@@ -96,17 +84,6 @@ router.get('/all', async (req, res) => {
     } catch (error) {
         console.error('Error fetching all casas:', error);
         res.status(500).json({ error: 'Unable to fetch all casas' });
-    }
-});
-
-// Add a new route to get all categories
-router.get('/categories', async (req, res) => {
-    try {
-        const categories = await prisma.category.findMany();
-        res.json(categories);
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-        res.status(500).json({ error: 'Unable to fetch categories' });
     }
 });
 

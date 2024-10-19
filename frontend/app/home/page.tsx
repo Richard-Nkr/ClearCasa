@@ -1,46 +1,37 @@
+'use client'
+
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
-import BackgroundMap from "@/components/BackgroundMap";
 import { authOptions } from "../api/auth/[...nextauth]/route";
+import { Sidebar } from "@/components/Sidebar";
+import dynamic from "next/dynamic";
+import { Suspense, useState, useCallback } from "react";
+import CasaForm from "@/components/CasaForm";
 
-async function getCasas() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    try {
-        const res = await fetch(`${apiUrl}/api/casa/all`, { 
-            cache: 'no-store',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        
-        if (!res.ok) {
-            const errorText = await res.text();
-            console.error('Failed to fetch all casas:', res.status, res.statusText, errorText);
-            return []; // Return an empty array instead of throwing an error
-        }
-        
-        const data = await res.json();
-        console.log('Fetched all casas:', data);
-        return data;
-    } catch (error) {
-        console.error('Error fetching all casas:', error);
-        return []; // Return an empty array in case of network errors
-    }
-}
+const LeafletMap = dynamic(() => import('@/components/LeafletMap').then(mod => mod.LeafletMap), {
+  ssr: false,
+});
 
-export default async function HomePage() {
-    const session = await getServerSession(authOptions);
+export default function HomePage() {
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    if (!session) {
-        redirect("/");
-    }
-
-    const allCasas = await getCasas();
+    const handleCasaCreated = useCallback(() => {
+        setRefreshTrigger(prev => prev + 1);
+    }, []);
 
     return (
-        <AuthenticatedLayout>
-            <BackgroundMap initialCasas={allCasas} />
-        </AuthenticatedLayout>
+        <div className="flex h-screen bg-gray-100">
+            <Sidebar className="w-64 border-r bg-white" />
+            <main className="flex-1 p-6 overflow-hidden relative">
+                <div className="h-[calc(100vh-3rem)]">
+                    <Suspense fallback={<div className="h-full flex items-center justify-center bg-gray-200 rounded-lg">Loading map...</div>}>
+                        <LeafletMap className="w-full h-full" key={refreshTrigger} />
+                    </Suspense>
+                </div>
+                <div className="absolute top-8 right-8 z-[1001]">
+                    <CasaForm onCasaCreated={handleCasaCreated} />
+                </div>
+            </main>
+        </div>
     );
 }

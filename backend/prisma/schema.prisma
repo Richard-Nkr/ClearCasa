@@ -29,27 +29,9 @@ model Casa {
   city        String
   startDate   DateTime
   endDate     DateTime
-  latitude    String
-  longitude   String
+  latitude    Float
+  longitude   Float
   ownerId     String   @db.ObjectId
   owner       User     @relation(fields: [ownerId], references: [id])
-  categories  CasaCategory[]
-}
-
-model Category {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  name   String
-  emoji  String
-  casas  CasaCategory[]
-}
-
-// Join table for Casa and Category
-model CasaCategory {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  casaId     String   @db.ObjectId
-  categoryId String   @db.ObjectId
-  casa       Casa     @relation(fields: [casaId], references: [id])
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  @@unique([casaId, categoryId])
+  categories  String[] // Changed to an array of strings
 }

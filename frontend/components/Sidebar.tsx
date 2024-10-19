@@ -1,92 +1,102 @@
 'use client';
 
-import Link from 'next/link';
-import { Home, CheckSquare, Calendar, Settings, LogOut, Menu, Plus } from 'lucide-react';
-import { useSession, signOut } from 'next-auth/react';
-import { useState } from 'react';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { HomeIcon, SettingsIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import CasaForm from "./CasaForm";
+import { useSession, signOut } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import CasaForm from './CasaForm';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuLabel, 
+    DropdownMenuSeparator, 
+    DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
-export default function Sidebar() {
+const sidebarNavItems = [
+    {
+        title: "Home",
+        href: "/home",
+        icon: HomeIcon,
+    },
+    {
+        title: "Settings",
+        href: "/settings",
+        icon: SettingsIcon,
+    },
+];
+
+interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
+
+export function Sidebar({ className }: SidebarProps) {
+    const pathname = usePathname();
     const { data: session } = useSession();
-    const [open, setOpen] = useState(false);
+    const router = useRouter();
 
-    if (!session) return null;
+    const handleSignOut = async () => {
+        await signOut({ redirect: false });
+        router.push('/login');
+    };
 
-    const SidebarContent = () => (
-        <div className="flex flex-col h-full">
-            <div className="flex items-center space-x-4 mb-6 pt-4 px-4">
-                <Avatar className="h-12 w-12 border-2 border-primary">
-                    <AvatarImage src={session.user?.image || undefined} alt={session.user?.name || 'User'} />
-                    <AvatarFallback className="bg-primary text-primary-foreground">{getInitials(session.user?.name)}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <p className="text-sm font-semibold text-primary">{session.user?.name || 'User'}</p>
-                    <p className="text-xs text-muted-foreground">{session.user?.email}</p>
+    return (
+        <div className={cn("pb-12 flex flex-col h-full", className)}>
+            <div className="space-y-4 py-4 flex-grow">
+                <div className="px-3 py-2">
+                    <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+                        Menu
+                    </h2>
+                    <div className="space-y-1">
+                        <ScrollArea className="h-[300px] px-1">
+                            {sidebarNavItems.map((item) => (
+                                <Button
+                                    key={item.href}
+                                    variant={pathname === item.href ? "secondary" : "ghost"}
+                                    className="w-full justify-start"
+                                    asChild
+                                >
+                                    <Link href={item.href}>
+                                        <item.icon className="mr-2 h-4 w-4" />
+                                        {item.title}
+                                    </Link>
+                                </Button>
+                            ))}
+                            <CasaForm onCasaCreated={() => {}} />
+                        </ScrollArea>
+                    </div>
                 </div>
             </div>
-            <nav className="flex-1 px-4">
-                <ul className="space-y-1">
-                    <SidebarItem href="/settings" icon={<Settings size={20} />} text="Settings" />
-                    <li>
-                        <CasaForm />
-                    </li>
-                </ul>
-            </nav>
-            <div className="mt-auto pt-4 px-4">
-                <Button
-                    variant="ghost"
-                    className="w-full justify-start text-muted-foreground hover:text-primary hover:bg-primary/10"
-                    onClick={() => signOut()}
-                >
-                    <LogOut size={20} className="mr-2" />
-                    <span>Sign out</span>
-                </Button>
-            </div>
+            {session && (
+                <div className="mt-auto px-3 py-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-start">
+                                <Avatar className="w-6 h-6 mr-2">
+                                    <AvatarImage src={session.user?.image || undefined} />
+                                    <AvatarFallback>{session.user?.name?.[0] || 'U'}</AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{session.user?.name || session.user?.email}</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                                <UserIcon className="mr-2 h-4 w-4" />
+                                <span>Profile</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleSignOut}>
+                                <LogOutIcon className="mr-2 h-4 w-4" />
+                                <span>Sign out</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            )}
         </div>
     );
-
-    return (
-        <>
-            <Sheet open={open} onOpenChange={setOpen}>
-                <SheetTrigger asChild className="md:hidden fixed top-4 left-4 z-50">
-                    <Button variant="outline" size="icon">
-                        <Menu />
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[280px] sm:w-[350px] bg-background border-r p-0">
-                    <SidebarContent />
-                </SheetContent>
-            </Sheet>
-            <aside className="hidden md:flex bg-background border-r w-64 flex-col h-screen">
-                <SidebarContent />
-            </aside>
-        </>
-    );
-}
-
-interface SidebarItemProps {
-    href: string;
-    icon: React.ReactNode;
-    text: string;
-}
-
-function SidebarItem({ href, icon, text }: SidebarItemProps) {
-    return (
-        <li>
-            <Button variant="ghost" asChild className="w-full justify-start text-muted-foreground hover:text-primary hover:bg-primary/10">
-                <Link href={href} className="flex items-center py-2 px-4 rounded-md transition-colors duration-200">
-                    {icon}
-                    <span className="ml-3">{text}</span>
-                </Link>
-            </Button>
-        </li>
-    );
-}
-
-function getInitials(name: string | null | undefined): string {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }

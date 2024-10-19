@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Plus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
@@ -23,7 +24,12 @@ interface AddressSuggestion {
     };
 }
 
-export default function CasaForm() {
+interface Category {
+    name: string;
+    emoji: string;
+}
+
+export default function CasaForm({ onCasaCreated }: { onCasaCreated: () => void }) {
     const [open, setOpen] = useState(false);
     const { data: session } = useSession();
     const [formData, setFormData] = useState({
@@ -37,6 +43,21 @@ export default function CasaForm() {
         longitude: '',
     });
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+    const [categories, setCategories] = useState<Category[]>([
+        { name: "Books", emoji: "📚" },
+        { name: "Furniture", emoji: "🪑" },
+        { name: "Garden", emoji: "🌻" },
+        { name: "Art", emoji: "🎨" },
+        { name: "Electronics", emoji: "🖥️" },
+        { name: "Clothes", emoji: "👚" },
+        { name: "Toys", emoji: "🧸" },
+        { name: "Sports", emoji: "⚽" },
+        { name: "Music", emoji: "🎵" },
+        { name: "Kitchen", emoji: "🍳" },
+        { name: "Pets", emoji: "🐾" },
+        { name: "Tools", emoji: "🔧" }
+    ]);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -68,10 +89,18 @@ export default function CasaForm() {
             ...prev,
             address: streetAddress,
             city: suggestion.address.city || suggestion.address.town || suggestion.address.village || suggestion.address.state || '',
-            latitude: suggestion.lat,
-            longitude: suggestion.lon,
+            latitude: parseFloat(suggestion.lat),  // Parse to float
+            longitude: parseFloat(suggestion.lon), // Parse to float
         }));
         setAddressSuggestions([]);
+    };
+
+    const handleCategoryToggle = (categoryName: string) => {
+        setSelectedCategories(prev => 
+            prev.includes(categoryName)
+                ? prev.filter(name => name !== categoryName)
+                : [...prev, categoryName]
+        );
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -80,6 +109,17 @@ export default function CasaForm() {
             console.error('User not authenticated');
             return;
         }
+
+        // Check if all required fields are filled
+        const requiredFields = ['title', 'description', 'address', 'city', 'startDate', 'endDate', 'latitude', 'longitude'];
+        const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
+
+        if (missingFields.length > 0) {
+            console.error('Missing required fields:', missingFields);
+            // You can show an error message to the user here
+            return;
+        }
+
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/casa`, {
                 method: 'POST',
@@ -88,13 +128,16 @@ export default function CasaForm() {
                 },
                 body: JSON.stringify({
                     ...formData,
+                    latitude: parseFloat(formData.latitude),
+                    longitude: parseFloat(formData.longitude),
                     userEmail: session.user.email,
+                    categories: selectedCategories,
                 }),
             });
 
             if (response.ok) {
-                console.log('Casa created successfully');
-                setOpen(false);
+                const newCasa = await response.json();
+                console.log('New Casa created:', newCasa);
                 // Reset form after submission
                 setFormData({
                     title: '',
@@ -106,23 +149,28 @@ export default function CasaForm() {
                     latitude: '',
                     longitude: '',
                 });
+                setSelectedCategories([]);
+                onCasaCreated(); // Trigger refresh of casas
             } else {
-                console.error('Failed to create Casa');
+                const errorData = await response.json();
+                console.error('Failed to create Casa:', errorData);
+                // You can show an error message to the user here
             }
         } catch (error) {
             console.error('Error creating Casa:', error);
+            // You can show an error message to the user here
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog>
             <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-primary hover:bg-primary/10">
+                <Button variant="default" className="w-full">
                     <Plus size={20} className="mr-2" />
                     <span>Add New Casa</span>
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] z-[1002]">
                 <DialogHeader>
                     <DialogTitle>Add New Casa</DialogTitle>
                 </DialogHeader>
@@ -189,6 +237,26 @@ export default function CasaForm() {
                         onChange={handleChange}
                         required
                     />
+                    
+                    <div className="space-y-2">
+                        <Label>Categories</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {categories.map(category => (
+                                <Button
+                                    key={category.name}
+                                    type="button"
+                                    size="sm"
+                                    variant={selectedCategories.includes(category.name) ? "default" : "outline"}
+                                    onClick={() => handleCategoryToggle(category.name)}
+                                    className="flex items-center justify-start space-x-1 h-9 px-2"
+                                >
+                                    <span>{category.emoji}</span>
+                                    <span className="truncate">{category.name}</span>
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+
                     <Button type="submit">Create Casa</Button>
                 </form>
             </DialogContent>
