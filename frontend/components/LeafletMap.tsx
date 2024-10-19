@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -96,6 +95,48 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${startFormatted} - ${endFormatted}, ${diffDays} days`;
 }
 
+function MapContent({ casas, filteredCasas, setHoveredCasa, setSelectedCasa }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (casas.length > 0) {
+      const bounds = L.latLngBounds(casas.map(casa => [casa.latitude, casa.longitude]))
+      map.fitBounds(bounds)
+    }
+  }, [casas, map])
+
+  const blackIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-black.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+
+  return (
+    <>
+      {filteredCasas.map((casa) => (
+        <Marker
+          key={casa.id}
+          position={[casa.latitude, casa.longitude]}
+          icon={blackIcon}
+          eventHandlers={{
+            mouseover: () => setHoveredCasa(casa),
+            mouseout: () => setHoveredCasa(null),
+            click: () => setSelectedCasa(casa),
+          }}
+        >
+          <Popup>
+            <h3>{casa.title}</h3>
+            <p>{casa.description}</p>
+          </Popup>
+        </Marker>
+      ))}
+    </>
+  )
+}
+
 export function LeafletMap({ className = '' }: LeafletMapProps) {
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -130,115 +171,6 @@ export function LeafletMap({ className = '' }: LeafletMapProps) {
     selectedCategories.length === 0 || 
     casa.categories.some(category => selectedCategories.includes(category))
   )
-
-  const addCasasToMap = useCallback((casasData: Casa[]) => {
-    console.log('Adding casas to map:', casasData);
-    if (!mapRef.current || !markersLayerRef.current) {
-      console.error('Map or markers layer not initialized');
-      return;
-    }
-
-    markersLayerRef.current.clearLayers();
-
-    const blackIcon = new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-black.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-
-    casasData.forEach(casa => {
-      console.log(`Adding marker for casa: ${casa.title} at ${casa.latitude}, ${casa.longitude}`);
-      try {
-        const marker = L.marker([casa.latitude, casa.longitude], { icon: blackIcon })
-          .addTo(markersLayerRef.current!)
-        
-        const markerElement = marker.getElement();
-        
-        markerElement.addEventListener('mouseenter', (e) => {
-          if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-          }
-          setHoveredCasa(casa);
-          const point = mapRef.current!.latLngToContainerPoint(marker.getLatLng());
-          setHoverPosition({ x: point.x, y: point.y });
-        });
-
-        markerElement.addEventListener('mouseleave', () => {
-          hoverTimeoutRef.current = setTimeout(() => {
-            setHoveredCasa(null);
-          }, 100); // Small delay to prevent flickering
-        });
-
-        marker.on('click', () => {
-          setSelectedCasa(casa);
-        });
-
-        console.log(`Marker added for casa: ${casa.title}`);
-      } catch (error) {
-        console.error(`Error adding marker for casa ${casa.title}:`, error);
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !mapContainerRef.current) return
-
-    if (!mapRef.current) {
-      mapRef.current = L.map(mapContainerRef.current, {
-        center: [46.603354, 1.888334], // Center of France
-        zoom: 6,
-        zoomControl: false,
-        scrollWheelZoom: true,
-        maxBounds: L.latLngBounds(
-          L.latLng(41.333, -5.225),
-          L.latLng(51.2, 9.55)
-        ),
-        minZoom: 5,
-        maxZoom: 18
-      })
-
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20
-      }).addTo(mapRef.current)
-
-      L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current)
-      L.control.scale({ position: 'bottomleft', imperial: false }).addTo(mapRef.current)
-
-      markersLayerRef.current = L.layerGroup().addTo(mapRef.current)
-
-      // Add a subtle outline of France
-      fetch('https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/france-metropolitan.geojson')
-        .then(response => response.json())
-        .then(data => {
-          L.geoJSON(data, {
-            style: {
-              color: '#3b82f6',
-              weight: 2,
-              fillColor: '#3b82f6',
-              fillOpacity: 0.1
-            }
-          }).addTo(mapRef.current!)
-        })
-    }
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (mapRef.current && markersLayerRef.current) {
-      addCasasToMap(filteredCasas)
-    }
-  }, [filteredCasas, addCasasToMap])
 
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -321,7 +253,26 @@ export function LeafletMap({ className = '' }: LeafletMapProps) {
           </div>
         </div>
       </div>
-      <div ref={mapContainerRef} className="h-full shadow-lg rounded-lg overflow-hidden" />
+      <MapContainer
+        center={[46.603354, 1.888334]}
+        zoom={6}
+        style={{ height: '100%', width: '100%' }}
+        maxBounds={L.latLngBounds(L.latLng(41.333, -5.225), L.latLng(51.2, 9.55))}
+        minZoom={5}
+        maxZoom={18}
+        zoomControl={false} // This line removes the zoom control buttons
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        />
+        <MapContent 
+          casas={casas} 
+          filteredCasas={filteredCasas}
+          setHoveredCasa={setHoveredCasa} 
+          setSelectedCasa={setSelectedCasa}
+        />
+      </MapContainer>
       {hoveredCasa && (
         <div 
           className="absolute z-[1000] w-64 bg-black text-white rounded-lg overflow-hidden shadow-lg"
